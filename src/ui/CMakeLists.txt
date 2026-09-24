@@ -1,6 +1,9 @@
 add_library(
   klogg_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/abstractlogview.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/aiclibackend.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/aipanel.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/airesponse.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/crawlerwidget.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/filteredview.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/highlightersdialog.h
@@ -52,6 +55,9 @@ add_library(
   ${CMAKE_CURRENT_SOURCE_DIR}/include/predefinedfiltersdialog.ui
   ${CMAKE_CURRENT_SOURCE_DIR}/include/optionsdialog.ui
   ${CMAKE_CURRENT_SOURCE_DIR}/src/abstractlogview.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/aiclibackend.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/aipanel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/airesponse.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/crawlerwidget.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/filteredview.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/highlightersdialog.cpp
