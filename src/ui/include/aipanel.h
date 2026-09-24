@@ -24,6 +24,8 @@ class AiPanel : public QWidget {
     void setContext( QString fileName, QString contextText );
     AiContextScope contextScope() const;
     void setStatus( const QString& message );
+    void activateTab( QObject* tab, QString fileName );
+    void forgetTab( QObject* tab );
     void cancelRequest();
 
   Q_SIGNALS:
@@ -38,6 +40,22 @@ class AiPanel : public QWidget {
     bool eventFilter( QObject* watched, QEvent* event ) override;
 
   private:
+    struct EvidenceTarget {
+        qulonglong lineNumber = 0;
+        QString expectedText;
+    };
+
+    struct TabState {
+        QString conversationHtml;
+        QString inputText;
+        QString statusText;
+        QString filterPattern;
+        QStringList highlightPatterns;
+        QHash<qulonglong, EvidenceTarget> evidenceTargets;
+        bool undoFilterEnabled = false;
+        bool undoHighlightsEnabled = false;
+    };
+
     void submitQuestion();
     void startRequest();
     void stopRequest();
@@ -72,6 +90,10 @@ class AiPanel : public QWidget {
     QStringList highlightPatterns_;
     QSet<qulonglong> allowedEvidence_;
     QHash<qulonglong, QString> evidenceText_;
+    QHash<qulonglong, EvidenceTarget> evidenceTargets_;
+    QHash<QObject*, TabState> tabStates_;
+    QObject* activeTab_ = nullptr;
+    qulonglong nextEvidenceId_ = 0;
     bool requestPending_ = false;
 };
 

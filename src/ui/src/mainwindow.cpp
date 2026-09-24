@@ -285,6 +285,13 @@ MainWindow::MainWindow( WindowSession session )
             aiActionCrawler_->clearAiHighlights();
         }
     } );
+    connect( aiPanel_, &AiPanel::evidenceActivated, this,
+             [ this ]( qulonglong lineNumber, const QString& expectedText ) {
+                 auto* crawler = currentCrawlerWidget();
+                 if ( crawler != nullptr && !crawler->jumpToAiEvidence( lineNumber, expectedText ) ) {
+                     aiPanel_->setStatus( tr( "Evidence line changed or is no longer available." ) );
+                 }
+             } );
 
     updateTitleBar( "" );
     loadIcons();
@@ -1497,6 +1504,9 @@ void MainWindow::closeTab( int index, ActionInitiator initiator )
     assert( widget );
 
     widget->stopLoading();
+    if ( aiPanel_ != nullptr ) {
+        aiPanel_->forgetTab( widget );
+    }
     mainTabWidget_.removeCrawler( index );
 
     if ( initiator == ActionInitiator::User ) {
@@ -1515,9 +1525,13 @@ void MainWindow::currentTabChanged( int index )
     LOG_DEBUG << "currentTabChanged";
 
     if ( aiPanel_ != nullptr ) {
-        aiPanel_->cancelRequest();
-        aiActionCrawler_ = nullptr;
-        aiPanel_->setContext( {}, {} );
+        auto* tab = index >= 0 ? qobject_cast<CrawlerWidget*>( mainTabWidget_.widget( index ) )
+                                : nullptr;
+        const QString fileName = tab != nullptr
+                                     ? QFileInfo( session_.getFilename( tab ) ).fileName()
+                                     : QString{};
+        aiPanel_->activateTab( tab, fileName );
+        aiActionCrawler_ = tab;
     }
 
     if ( index >= 0 ) {
@@ -1530,10 +1544,6 @@ void MainWindow::currentTabChanged( int index )
 
         updateMenuBarFromDocument( crawler_widget );
         updateTitleBar( session_.getFilename( crawler_widget ) );
-        if ( aiPanel_ != nullptr ) {
-            aiPanel_->setContext(
-                QFileInfo( session_.getFilename( crawler_widget ) ).fileName(), {} );
-        }
         updateFavoritesMenu();
 
         editMenu->setEnabled( true );

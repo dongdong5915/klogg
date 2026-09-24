@@ -59,7 +59,7 @@ AiPanel::AiPanel( QWidget* parent )
     scopeBox_->addItem( tr( "Around current selection" ),
                         static_cast<int>( AiContextScope::Selection ) );
     scopeBox_->setToolTip( tr( "Only lines in this range are sent to the provider." ) );
-    previewBeforeSend_->setChecked( true );
+    previewBeforeSend_->setChecked( false );
     previewBeforeSend_->setToolTip(
         tr( "Show the exact payload and require confirmation for every single request." ) );
     fileLabel_->setTextInteractionFlags( Qt::TextSelectableByMouse );
@@ -119,9 +119,10 @@ AiPanel::AiPanel( QWidget* parent )
             return;
         }
         bool validLine = false;
-        const qulonglong line = url.path().toULongLong( &validLine );
-        if ( validLine && allowedEvidence_.contains( line ) ) {
-            Q_EMIT evidenceActivated( line, evidenceText_.value( line ) );
+        const qulonglong evidenceId = url.path().toULongLong( &validLine );
+        if ( validLine && evidenceTargets_.contains( evidenceId ) ) {
+            const auto& target = evidenceTargets_.value( evidenceId );
+            Q_EMIT evidenceActivated( target.lineNumber, target.expectedText );
         }
     } );
 
@@ -140,6 +141,58 @@ bool AiPanel::eventFilter( QObject* watched, QEvent* event )
     }
 
     return QWidget::eventFilter( watched, event );
+}
+
+void AiPanel::activateTab( QObject* tab, QString fileName )
+{
+    if ( activeTab_ == tab ) {
+        return;
+    }
+
+    if ( activeTab_ != nullptr ) {
+        stopRequest();
+        tabStates_.insert( activeTab_, TabState{ conversation_->toHtml(),
+                                                 input_->toPlainText(),
+                                                 status_->text(),
+                                                 filterPattern_,
+                                                 highlightPatterns_,
+                                                 evidenceTargets_,
+                                                 undoFilterButton_->isEnabled(),
+                                                 undoHighlightsButton_->isEnabled() } );
+    }
+
+    cancelRequest();
+    activeTab_ = tab;
+    if ( tab == nullptr ) {
+        return;
+    }
+
+    setContext( std::move( fileName ), {} );
+    if ( !tabStates_.contains( tab ) ) {
+        updateAvailability();
+        return;
+    }
+
+    const auto state = tabStates_.value( tab );
+    conversation_->setHtml( state.conversationHtml );
+    input_->setPlainText( state.inputText );
+    filterPattern_ = state.filterPattern;
+    highlightPatterns_ = state.highlightPatterns;
+    evidenceTargets_ = state.evidenceTargets;
+    applyFilterButton_->setEnabled( !filterPattern_.isEmpty() );
+    undoFilterButton_->setEnabled( state.undoFilterEnabled );
+    applyHighlightsButton_->setEnabled( !highlightPatterns_.isEmpty() );
+    undoHighlightsButton_->setEnabled( state.undoHighlightsEnabled );
+    status_->setText( state.statusText );
+}
+
+void AiPanel::forgetTab( QObject* tab )
+{
+    tabStates_.remove( tab );
+    if ( activeTab_ == tab ) {
+        activeTab_ = nullptr;
+        cancelRequest();
+    }
 }
 
 void AiPanel::setContext( QString fileName, QString contextText )
@@ -226,7 +279,6 @@ void AiPanel::startRequest()
         return;
     }
 
-    // Nothing leaves the machine without the user seeing the exact payload.
     if ( previewBeforeSend_->isChecked() && !confirmSend() ) {
         requestPending_ = false;
         status_->setText( tr( "Send cancelled. Nothing was transmitted." ) );
@@ -247,7 +299,8 @@ void AiPanel::startRequest()
     status_->setText( tr( "Analyzing %1 visible lines with %2..." )
                           .arg( allowedEvidence_.size() )
                           .arg( providerBox_->currentText() ) );
-    if ( !backend_->start( provider, prompt, AiResponseParser::schema() ) ) {
+    if ( !backend_->start( provider, prompt, AiResponseParser::schema() )
+         && requestPending_ ) {
         requestPending_ = false;
         setRunning( false );
         status_->setText( tr( "Could not start the AI provider." ) );
@@ -310,12 +363,19 @@ void AiPanel::requestFinished( AiCliBackend::Provider provider, const QString& o
     highlightPatterns_ = response.highlightPatterns;
     applyFilterButton_->setEnabled( !filterPattern_.isEmpty() );
     applyHighlightsButton_->setEnabled( !highlightPatterns_.isEmpty() );
+    if ( evidenceTargets_.size() + response.evidenceLines.size() > 1000 ) {
+        evidenceTargets_.clear();
+        conversation_->clear();
+    }
     conversation_->append( QStringLiteral( "<p><b>%1</b></p>" ).arg( htmlText( pendingQuestion_ ) ) );
     conversation_->append( QStringLiteral( "<p>%1</p>" ).arg( htmlText( response.summary ) ) );
     for ( const auto line : response.evidenceLines ) {
-        conversation_->append( QStringLiteral( "<a href=\"logline:%1\">%2:L%1</a>" )
-                                   .arg( line )
-                                   .arg( fileName_.toHtmlEscaped() ) );
+        const qulonglong evidenceId = ++nextEvidenceId_;
+        evidenceTargets_.insert( evidenceId, EvidenceTarget{ line, evidenceText_.value( line ) } );
+        conversation_->append( QStringLiteral( "<a href=\"logline:%1\">%2:L%3</a>" )
+                                   .arg( evidenceId )
+                                   .arg( fileName_.toHtmlEscaped() )
+                                   .arg( line ) );
     }
     if ( !filterPattern_.isEmpty() ) {
         conversation_->append( tr( "Filter suggestion: %1" ).arg( htmlText( filterPattern_ ) ) );
@@ -358,12 +418,6 @@ void AiPanel::stopRequest()
 void AiPanel::cancelRequest()
 {
     stopRequest();
-    if ( undoFilterButton_->isEnabled() ) {
-        Q_EMIT undoFilterRequested();
-    }
-    if ( undoHighlightsButton_->isEnabled() ) {
-        Q_EMIT undoHighlightRequested();
-    }
     filterPattern_.clear();
     highlightPatterns_.clear();
     applyFilterButton_->setEnabled( false );
@@ -373,6 +427,7 @@ void AiPanel::cancelRequest()
     contextText_.clear();
     allowedEvidence_.clear();
     evidenceText_.clear();
+    evidenceTargets_.clear();
     conversation_->clear();
     input_->clear();
     fileName_.clear();

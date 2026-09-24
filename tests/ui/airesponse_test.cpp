@@ -1,5 +1,8 @@
 #include <catch2/catch.hpp>
 
+#include <QPlainTextEdit>
+
+#include "aipanel.h"
 #include "airesponse.h"
 
 TEST_CASE( "AI response validates actions against the supplied lines", "[ui]" )
@@ -51,4 +54,28 @@ TEST_CASE( "AI response accepts the CLI transcript array", "[ui]" )
     // A transcript without a result entry carries no payload.
     const QByteArray noResult = R"json([{"type":"message","role":"user","content":[]}])json";
     REQUIRE_FALSE( AiResponseParser::parse( noResult, allowedLines, &response, &error ) );
+}
+
+TEST_CASE( "AI panel preserves each tab draft and forgets closed tabs", "[ui]" )
+{
+    AiPanel panel;
+    QObject firstTab;
+    QObject secondTab;
+    auto* input = panel.findChild<QPlainTextEdit*>();
+    REQUIRE( input != nullptr );
+
+    panel.activateTab( &firstTab, QStringLiteral( "first.log" ) );
+    input->setPlainText( QStringLiteral( "first question" ) );
+    panel.activateTab( &secondTab, QStringLiteral( "second.log" ) );
+    REQUIRE( input->toPlainText().isEmpty() );
+
+    input->setPlainText( QStringLiteral( "second question" ) );
+    panel.activateTab( &firstTab, QStringLiteral( "first.log" ) );
+    REQUIRE( input->toPlainText() == QLatin1String( "first question" ) );
+
+    panel.forgetTab( &firstTab );
+    panel.activateTab( &secondTab, QStringLiteral( "second.log" ) );
+    REQUIRE( input->toPlainText() == QLatin1String( "second question" ) );
+    panel.activateTab( &firstTab, QStringLiteral( "first.log" ) );
+    REQUIRE( input->toPlainText().isEmpty() );
 }

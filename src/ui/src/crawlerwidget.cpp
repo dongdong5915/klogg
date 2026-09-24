@@ -996,6 +996,22 @@ QString CrawlerWidget::aiContextSnapshot( AiContextScope scope ) const
     return snapshot;
 }
 
+bool CrawlerWidget::jumpToAiEvidence( qulonglong lineNumber, const QString& expectedText )
+{
+    if ( !logData_ || loadingInProgress_ || lineNumber == 0
+         || lineNumber > logData_->getNbLine().get() ) {
+        return false;
+    }
+
+    const auto line = LineNumber( static_cast<LineNumber::UnderlyingType>( lineNumber - 1 ) );
+    if ( logData_->getLineString( line ).left( 512 ) != expectedText ) {
+        return false;
+    }
+
+    logMainView_->trySelectLine( line );
+    return true;
+}
+
 bool CrawlerWidget::applyAiSearch( const QString& pattern )
 {
     if ( !logData_ || loadingInProgress_ || pattern.isEmpty() || pattern.size() > 256

@@ -120,6 +120,7 @@ class CrawlerWidget : public QSplitter,
     // Bounded snapshot of the given scope. Lines are tagged "L<userLineNumber>: <text>"
     // so AI evidence references can be resolved back to original file lines.
     QString aiContextSnapshot( AiContextScope scope ) const;
+    bool jumpToAiEvidence( qulonglong lineNumber, const QString& expectedText );
     bool applyAiSearch( const QString& pattern );
     void undoAiSearch();
     void addAiHighlight( const QString& pattern );

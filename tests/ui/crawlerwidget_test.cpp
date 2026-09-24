@@ -304,6 +304,16 @@ SCENARIO( "AI search uses the current crawler and can restore the previous searc
                                   .hasMatch();
                           } ) );
 
+    const QRegularExpression firstEvidencePattern{ QStringLiteral( "^L([1-9][0-9]*): (.*)$" ) };
+    const auto firstEvidence = firstEvidencePattern.match( contextLines.front() );
+    REQUIRE( firstEvidence.hasMatch() );
+    const auto evidenceLine = firstEvidence.captured( 1 ).toULongLong();
+    REQUIRE( crawlerVisitor.crawler->jumpToAiEvidence( evidenceLine,
+                                                        firstEvidence.captured( 2 ) ) );
+    REQUIRE_FALSE( crawlerVisitor.crawler->jumpToAiEvidence( evidenceLine,
+                                                              QStringLiteral( "stale line" ) ) );
+    REQUIRE_FALSE( crawlerVisitor.crawler->jumpToAiEvidence( 0, firstEvidence.captured( 2 ) ) );
+
     // The filter scope is empty until a search has been run.
     REQUIRE( crawlerVisitor.crawler->aiContextSnapshot( AiContextScope::FilterResults ).isEmpty() );
 
