@@ -40,6 +40,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QMenu>
 #include <QSystemTrayIcon>
 #include <QTemporaryDir>
@@ -63,6 +64,8 @@
 
 class QAction;
 class QActionGroup;
+class QDockWidget;
+class AiPanel;
 class Session;
 class RecentFiles;
 class HighlightersMenu;
@@ -198,6 +201,9 @@ class MainWindow : public QMainWindow {
     void createTrayIcon();
     void readSettings();
     void writeSettings();
+    // Persist only the AI dock visibility and width, not the whole window state.
+    void restoreAiDockState();
+    void saveAiDockState();
     bool loadFile( const QString& fileName, bool followFile = false );
     bool extractAndLoadFile( const QString& fileName );
     void openRemoteFile( const QUrl& url );
@@ -310,6 +316,10 @@ class MainWindow : public QMainWindow {
 
     // The main widget
     TabbedCrawlerWidget mainTabWidget_;
+
+    QDockWidget* aiDock_ = nullptr;
+    AiPanel* aiPanel_ = nullptr;
+    QPointer<CrawlerWidget> aiActionCrawler_;
 
     TabbedScratchPad scratchPad_;
 

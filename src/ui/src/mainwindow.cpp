@@ -40,9 +40,11 @@
 // managing the menus, the toolbar, and the CrawlerWidget. It also
 // load/save the settings on opening/closing of the app
 
+#include "aipanel.h"
 #include "configuration.h"
 #include "containers.h"
 #include "log.h"
+#include "persistentinfo.h"
 #include <QNetworkReply>
 #include <cassert>
 #include <exception>
@@ -58,7 +60,9 @@
 
 #include <QClipboard>
 #include <QCloseEvent>
+#include <QDataStream>
 #include <QDialogButtonBox>
+#include <QDockWidget>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QInputDialog>
@@ -230,6 +234,57 @@ MainWindow::MainWindow( WindowSession session )
     central_widget->setLayout( main_layout );
 
     setCentralWidget( central_widget );
+
+    aiDock_ = new QDockWidget( tr( "AI Assistant" ), this );
+    aiDock_->setObjectName( QStringLiteral( "aiDock" ) );
+    aiDock_->setAllowedAreas( Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea );
+    aiPanel_ = new AiPanel( aiDock_ );
+    aiDock_->setWidget( aiPanel_ );
+    addDockWidget( Qt::RightDockWidgetArea, aiDock_ );
+    viewMenu->addAction( aiDock_->toggleViewAction() );
+    restoreAiDockState();
+
+    connect( aiPanel_, &AiPanel::contextRequested, this, [ this ] {
+        auto* crawler = currentCrawlerWidget();
+        if ( crawler == nullptr ) {
+            aiPanel_->setContext( {}, {} );
+            return;
+        }
+
+        const QString fileName = QFileInfo( session_.getFilename( crawler ) ).fileName();
+        aiPanel_->setContext( fileName, crawler->aiContextSnapshot( aiPanel_->contextScope() ) );
+    } );
+    connect( aiPanel_, &AiPanel::filterRequested, this, [ this ]( const QString& pattern ) {
+        auto* crawler = currentCrawlerWidget();
+        if ( crawler == nullptr ) {
+            return;
+        }
+
+        if ( crawler->applyAiSearch( pattern ) ) {
+            aiActionCrawler_ = crawler;
+        }
+        else {
+            aiPanel_->setStatus(
+                tr( "Suggested filter could not be applied: %1" ).arg( pattern ) );
+        }
+    } );
+    connect( aiPanel_, &AiPanel::undoFilterRequested, this, [ this ] {
+        if ( aiActionCrawler_ ) {
+            aiActionCrawler_->undoAiSearch();
+        }
+    } );
+    connect( aiPanel_, &AiPanel::highlightRequested, this, [ this ]( const QString& pattern ) {
+        auto* crawler = currentCrawlerWidget();
+        if ( crawler != nullptr ) {
+            crawler->addAiHighlight( pattern );
+            aiActionCrawler_ = crawler;
+        }
+    } );
+    connect( aiPanel_, &AiPanel::undoHighlightRequested, this, [ this ] {
+        if ( aiActionCrawler_ ) {
+            aiActionCrawler_->clearAiHighlights();
+        }
+    } );
 
     updateTitleBar( "" );
     loadIcons();
@@ -1459,6 +1514,12 @@ void MainWindow::currentTabChanged( int index )
 {
     LOG_DEBUG << "currentTabChanged";
 
+    if ( aiPanel_ != nullptr ) {
+        aiPanel_->cancelRequest();
+        aiActionCrawler_ = nullptr;
+        aiPanel_->setContext( {}, {} );
+    }
+
     if ( index >= 0 ) {
         auto* crawler_widget = static_cast<CrawlerWidget*>( mainTabWidget_.widget( index ) );
         signalMux_.setCurrentDocument( crawler_widget );
@@ -1469,6 +1530,10 @@ void MainWindow::currentTabChanged( int index )
 
         updateMenuBarFromDocument( crawler_widget );
         updateTitleBar( session_.getFilename( crawler_widget ) );
+        if ( aiPanel_ != nullptr ) {
+            aiPanel_->setContext(
+                QFileInfo( session_.getFilename( crawler_widget ) ).fileName(), {} );
+        }
         updateFavoritesMenu();
 
         editMenu->setEnabled( true );
@@ -2184,6 +2249,8 @@ void MainWindow::showInfoLabels( bool show )
 // Write settings to permanent storage
 void MainWindow::writeSettings()
 {
+    saveAiDockState();
+
     // Save the session
     // Generate the ordered list of widgets and their topLine
     std::vector<
@@ -2194,6 +2261,39 @@ void MainWindow::writeSettings()
         widget_list.emplace_back( view, 0UL, view->context() );
     }
     session_.save( widget_list, saveGeometry() );
+}
+
+void MainWindow::restoreAiDockState()
+{
+    auto& settings = PersistentInfo::getSettings( session_settings{} );
+    const QString key = QStringLiteral( "view.aiDockState.%1" )
+                            .arg( static_cast<qulonglong>( session_.windowIndex() ) );
+    const QByteArray state = settings.value( key ).toByteArray();
+    if ( state.isEmpty() ) {
+        return;
+    }
+
+    bool visible = true;
+    int width = 0;
+    QDataStream stream{ state };
+    stream >> visible >> width;
+
+    aiDock_->setVisible( visible );
+    if ( visible && width > 0 ) {
+        resizeDocks( { aiDock_ }, { width }, Qt::Horizontal );
+    }
+}
+
+void MainWindow::saveAiDockState()
+{
+    QByteArray state{};
+    QDataStream stream( &state, QIODevice::WriteOnly );
+    stream << aiDock_->isVisible() << aiDock_->width();
+
+    auto& settings = PersistentInfo::getSettings( session_settings{} );
+    const QString key = QStringLiteral( "view.aiDockState.%1" )
+                            .arg( static_cast<qulonglong>( session_.windowIndex() ) );
+    settings.setValue( key, state );
 }
 
 // Read settings from permanent storage
