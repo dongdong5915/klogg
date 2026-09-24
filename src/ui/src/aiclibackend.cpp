@@ -224,8 +224,8 @@ bool AiCliBackend::start( Provider provider, const QString& prompt, const QByteA
         QStringLiteral( "--max-turns" ), QStringLiteral( "1" )
     };
     if ( QFileInfo( userState ).isFile() ) {
-        const int insertAt = args.indexOf( QStringLiteral( "--dir" ),
-                                           args.indexOf( authDirectory() ) );
+        const auto insertAt = args.indexOf( QStringLiteral( "--dir" ),
+                                            args.indexOf( authDirectory() ) );
         args.insert( insertAt, QStringLiteral( "--ro-bind" ) );
         args.insert( insertAt + 1, userState );
         args.insert( insertAt + 2, userState );

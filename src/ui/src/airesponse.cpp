@@ -42,7 +42,8 @@ QJsonObject resultObject( const QByteArray& output, QString* error )
         // --output-format json returns the whole transcript. Only the terminal entry of
         // type "result" carries the payload, the rest is conversation history.
         const auto entries = document.array();
-        for ( int index = entries.size() - 1; index >= 0; --index ) {
+        for ( auto index = entries.size(); index > 0; ) {
+            --index;
             const auto entry = entries.at( index ).toObject();
             if ( entry.value( QStringLiteral( "type" ) ) == QLatin1String( "result" ) ) {
                 wrapper = entry;
