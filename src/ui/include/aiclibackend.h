@@ -18,6 +18,8 @@
 #include <QString>
 #include <QTimer>
 
+#include "aiprovidersettings.h"
+
 class AiCliBackend : public QObject {
     Q_OBJECT
 
@@ -28,6 +30,7 @@ public:
     explicit AiCliBackend( QObject* parent = nullptr );
     ~AiCliBackend() override;
 
+    static QString availability( Provider provider, const AiProviderSettings& settings );
     QString availability( Provider provider ) const;
     bool start( Provider provider, const QString& prompt, const QByteArray& schema );
     void cancel();
@@ -50,5 +53,7 @@ private:
     Provider provider_ = Provider::CodeBuddy;
     bool active_ = false;
 };
+
+QString aiProviderName( AiCliBackend::Provider provider );
 
 #endif // AICLIBACKEND_H
