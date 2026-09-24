@@ -24,8 +24,6 @@ struct AiProviderSettings {
 
     void save( QSettings& settings, const QString& providerKey ) const;
     void restore( QSettings& settings, const QString& providerKey );
-
-    bool operator==( const AiProviderSettings& other ) const = default;
 };
 
 #endif // KLOGG_AI_PROVIDER_SETTINGS_H
