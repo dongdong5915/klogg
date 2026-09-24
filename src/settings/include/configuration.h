@@ -42,11 +42,13 @@
 
 #include <QColor>
 #include <QFont>
+#include <QHash>
 #include <QSettings>
 #include <qcolor.h>
 #include <string>
 #include <string_view>
 
+#include "aiprovidersettings.h"
 #include "persistable.h"
 
 // Type of regexp to use for searches
@@ -310,6 +312,9 @@ class Configuration final : public Persistable<Configuration> {
         theme_ = theme;
     }
 
+    AiProviderSettings aiProviderSettings( const QString& providerKey ) const;
+    void setAiProviderSettings( const QString& providerKey, const AiProviderSettings& settings );
+
     bool enableLogging() const
     {
         return enableLogging_;
@@ -572,6 +577,8 @@ class Configuration final : public Persistable<Configuration> {
     bool minimizeToTray_ = false;
     QString style_;
     QString theme_ = "default";
+
+    QHash<QString, AiProviderSettings> aiProviderSettings_;
 
     // Default settings for new views
     bool searchAutoRefresh_ = false;

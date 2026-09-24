@@ -82,6 +82,17 @@ void Configuration::setMainFont( QFont newFont )
     mainFont_ = newFont;
 }
 
+AiProviderSettings Configuration::aiProviderSettings( const QString& providerKey ) const
+{
+    return aiProviderSettings_.value( providerKey, AiProviderSettings{} );
+}
+
+void Configuration::setAiProviderSettings( const QString& providerKey,
+                                           const AiProviderSettings& settings )
+{
+    aiProviderSettings_[ providerKey ] = settings;
+}
+
 void Configuration::retrieveFromStorage( QSettings& settings )
 {
     LOG_DEBUG << "Configuration::retrieveFromStorage";
@@ -296,6 +307,16 @@ void Configuration::retrieveFromStorage( QSettings& settings )
         theme_ = DefaultConfiguration.theme_;
     }
 
+    if ( settings.childGroups().contains( QStringLiteral( "aiProviders" ) ) ) {
+        settings.beginGroup( QStringLiteral( "aiProviders" ) );
+        for ( const QString& providerKey : settings.childGroups() ) {
+            AiProviderSettings entry;
+            entry.restore( settings, providerKey );
+            aiProviderSettings_[ providerKey ] = std::move( entry );
+        }
+        settings.endGroup();
+    }
+
     // DefaultConfiguration crawler settings
     searchAutoRefresh_
         = settings.value( "defaultView.searchAutoRefresh", DefaultConfiguration.searchAutoRefresh_ )
@@ -416,6 +437,14 @@ void Configuration::saveToStorage( QSettings& settings ) const
     settings.setValue( "view.minimizeToTray", minimizeToTray_ );
     settings.setValue( "view.style", style_ );
     settings.setValue( "view.theme", theme_ );
+
+    settings.remove( QStringLiteral( "aiProviders" ) );
+    settings.beginGroup( QStringLiteral( "aiProviders" ) );
+    for ( auto it = aiProviderSettings_.cbegin(); it != aiProviderSettings_.cend(); ++it ) {
+        it.value().save( settings, it.key() );
+    }
+    settings.endGroup();
+
     settings.setValue( "view.language", language_ );
     settings.setValue( "view.textWrap", useTextWrap_ );
 
