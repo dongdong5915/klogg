@@ -73,6 +73,13 @@ class QStandardItemModel;
 class QCompleter;
 class OverviewWidget;
 
+// Scope of the bounded log snapshot handed to the AI provider.
+enum class AiContextScope {
+    VisibleRange,   // Lines currently visible in the main view.
+    FilterResults,  // Lines matched by the current local search.
+    Selection,      // Lines around the current selection in the main view.
+};
+
 // Implements the central widget of the application.
 // It includes both windows, the search line, the info
 // lines and various buttons.
@@ -109,6 +116,14 @@ class CrawlerWidget : public QSplitter,
     bool isFollowEnabled() const;
 
     bool isTextWrapEnabled() const;
+
+    // Bounded snapshot of the given scope. Lines are tagged "L<userLineNumber>: <text>"
+    // so AI evidence references can be resolved back to original file lines.
+    QString aiContextSnapshot( AiContextScope scope ) const;
+    bool applyAiSearch( const QString& pattern );
+    void undoAiSearch();
+    void addAiHighlight( const QString& pattern );
+    void clearAiHighlights();
 
     void registerShortcuts();
 
@@ -379,6 +394,17 @@ class CrawlerWidget : public QSplitter,
     PredefinedFiltersComboBox* predefinedFilters_;
 
     QComboBox* searchLineEdit_;
+
+    struct AiPreviousSearch {
+        QString pattern;
+        bool matchCase = false;
+        bool useRegexp = false;
+        bool inverse = false;
+        bool boolean = false;
+    };
+    std::optional<AiPreviousSearch> aiPreviousSearch_;
+    QString aiAppliedPattern_;
+    QStringList aiHighlightPatterns_;
     QMenu* searchLineContextMenu_;
     QCompleter* searchLineCompleter_;
 

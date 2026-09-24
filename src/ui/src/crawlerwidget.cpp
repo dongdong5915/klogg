@@ -381,6 +381,9 @@ void CrawlerWidget::startNewSearch()
         logFilteredData_ = logData_->getNewFilteredData();
 
         filteredView_ = new FilteredView( logFilteredData_.get(), quickFindPattern_.get() );
+        for ( const auto& pattern : aiHighlightPatterns_ ) {
+            filteredView_->addAiHighlight( pattern );
+        }
         filteredViewsData_[ filteredView_ ] = logFilteredData_;
 
         connectAllFilteredViewSlots( filteredView_ );
@@ -909,6 +912,176 @@ void CrawlerWidget::excludeFromSearch( const QString& searchString )
 void CrawlerWidget::replaceSearch( const QString& searchString )
 {
     setSearchPattern( escapeSearchPattern( searchString ) );
+}
+
+QString CrawlerWidget::aiContextSnapshot( AiContextScope scope ) const
+{
+    if ( !logData_ || loadingInProgress_ ) {
+        return {};
+    }
+
+    constexpr size_t MaxLines = 80;
+    constexpr size_t SelectionLeadLines = 10;
+    constexpr int MaxLineChars = 512;
+    constexpr int MaxBytes = 24 * 1024;
+
+    const size_t totalLines = logData_->getNbLine().get();
+    if ( totalLines == 0 ) {
+        return {};
+    }
+
+    QString snapshot{};
+    size_t appendedLines = 0;
+
+    // Tags each line with the user visible "L<line>" id the provider must reuse for evidence.
+    auto appendFileLine = [ this, &snapshot, &appendedLines, totalLines ]( size_t fileLine ) {
+        if ( appendedLines >= MaxLines || fileLine >= totalLines ) {
+            return false;
+        }
+
+        const QString entry
+            = QStringLiteral( "L%1: %2\n" )
+                  .arg( static_cast<qulonglong>( fileLine + 1 ) )
+                  .arg( logData_
+                            ->getLineString(
+                                LineNumber( static_cast<LineNumber::UnderlyingType>( fileLine ) ) )
+                            .left( MaxLineChars ) );
+        if ( snapshot.toUtf8().size() + entry.toUtf8().size() > MaxBytes ) {
+            return false;
+        }
+
+        snapshot += entry;
+        ++appendedLines;
+        return true;
+    };
+
+    if ( scope == AiContextScope::FilterResults ) {
+        if ( !logFilteredData_ ) {
+            return {};
+        }
+
+        const size_t matches = logFilteredData_->getNbMatches().get();
+        for ( size_t match = 0; match < matches; ++match ) {
+            const LineNumber matchIndex( static_cast<LineNumber::UnderlyingType>( match ) );
+            if ( !appendFileLine( logFilteredData_->getMatchingLineNumber( matchIndex ).get() ) ) {
+                break;
+            }
+        }
+    }
+    else if ( scope == AiContextScope::Selection ) {
+        const klogg::vector<LineNumber> selectedLines
+            = logMainView_ != nullptr ? logMainView_->getSelectedLines()
+                                      : klogg::vector<LineNumber>{};
+        if ( selectedLines.empty() ) {
+            return {};
+        }
+
+        const size_t firstSelected = selectedLines.front().get();
+        const size_t startLine
+            = firstSelected > SelectionLeadLines ? firstSelected - SelectionLeadLines : 0U;
+        for ( size_t index = startLine; index < totalLines; ++index ) {
+            if ( !appendFileLine( index ) ) {
+                break;
+            }
+        }
+    }
+    else {
+        for ( size_t index = getTopLine().get(); index < totalLines; ++index ) {
+            if ( !appendFileLine( index ) ) {
+                break;
+            }
+        }
+    }
+
+    return snapshot;
+}
+
+bool CrawlerWidget::applyAiSearch( const QString& pattern )
+{
+    if ( !logData_ || loadingInProgress_ || pattern.isEmpty() || pattern.size() > 256
+         || pattern.contains( QLatin1Char( '\n' ) ) || pattern.contains( QLatin1Char( '\r' ) ) ) {
+        return false;
+    }
+
+    // AI suggestions are plain literals. Validate before touching the search state so an
+    // invalid pattern can never replace the filter the user already has.
+    const RegularExpressionPattern candidate{ pattern, false, false, false, true };
+    if ( !RegularExpression{ candidate }.isValid() ) {
+        return false;
+    }
+
+    if ( !aiPreviousSearch_ ) {
+        aiPreviousSearch_ = AiPreviousSearch{ searchLineEdit_->currentText(),
+                                              matchCaseButton_->isChecked(),
+                                              useRegexpButton_->isChecked(),
+                                              inverseButton_->isChecked(),
+                                              booleanButton_->isChecked() };
+    }
+
+    matchCaseButton_->setChecked( false );
+    useRegexpButton_->setChecked( false );
+    inverseButton_->setChecked( false );
+    booleanButton_->setChecked( false );
+    searchLineEdit_->setEditText( pattern );
+    updatePredefinedFiltersWidget();
+    startNewSearch();
+    aiAppliedPattern_ = pattern;
+
+    return true;
+}
+
+void CrawlerWidget::undoAiSearch()
+{
+    if ( !aiPreviousSearch_ ) {
+        return;
+    }
+
+    const AiPreviousSearch previous = *aiPreviousSearch_;
+    aiPreviousSearch_.reset();
+    if ( searchLineEdit_->currentText() != aiAppliedPattern_ || matchCaseButton_->isChecked()
+         || useRegexpButton_->isChecked() || inverseButton_->isChecked()
+         || booleanButton_->isChecked() ) {
+        aiAppliedPattern_.clear();
+        return;
+    }
+
+    aiAppliedPattern_.clear();
+    matchCaseButton_->setChecked( previous.matchCase );
+    useRegexpButton_->setChecked( previous.useRegexp );
+    inverseButton_->setChecked( previous.inverse );
+    booleanButton_->setChecked( previous.boolean );
+    searchLineEdit_->setEditText( previous.pattern );
+    updatePredefinedFiltersWidget();
+    startNewSearch();
+}
+
+void CrawlerWidget::addAiHighlight( const QString& pattern )
+{
+    if ( pattern.isEmpty() || pattern.size() > 256 || !logMainView_ || !filteredView_ ) {
+        return;
+    }
+
+    if ( aiHighlightPatterns_.contains( pattern, Qt::CaseInsensitive )
+         || aiHighlightPatterns_.size() >= 5 ) {
+        return;
+    }
+
+    aiHighlightPatterns_.append( pattern );
+    logMainView_->addAiHighlight( pattern );
+    for ( const auto& filteredView : filteredViewsData_ ) {
+        filteredView.first->addAiHighlight( pattern );
+    }
+}
+
+void CrawlerWidget::clearAiHighlights()
+{
+    aiHighlightPatterns_.clear();
+    if ( logMainView_ ) {
+        logMainView_->clearAiHighlight();
+    }
+    for ( const auto& filteredView : filteredViewsData_ ) {
+        filteredView.first->clearAiHighlight();
+    }
 }
 
 void CrawlerWidget::setSearchPattern( const QString& searchPattern )

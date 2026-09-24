@@ -53,6 +53,7 @@
 #include <QColor>
 #include <QEvent>
 #include <QFontMetrics>
+#include <QStringList>
 
 #ifdef GLOGG_PERF_MEASURE_FPS
 #include "perfcounter.h"
@@ -134,6 +135,8 @@ class AbstractLogView : public QAbstractScrollArea, public SearchableWidgetInter
     LineNumber getTopLine() const;
     // Return the text of the current selection.
     QString getSelectedText() const;
+    // Return the file lines covered by the current selection, empty when nothing is selected.
+    klogg::vector<LineNumber> getSelectedLines() const;
     // True for partial selection
     bool isPartialSelection() const;
     // Instructs the widget to select the whole text.
@@ -155,6 +158,9 @@ class AbstractLogView : public QAbstractScrollArea, public SearchableWidgetInter
 
     using QuickHighlighters = QStringList;
     void setQuickHighlighters( const std::vector<QuickHighlighters>& wordHighlighters );
+    void setAiHighlight( const QString& pattern );
+    void addAiHighlight( const QString& pattern );
+    void clearAiHighlight();
 
     void registerShortcuts();
 
@@ -359,6 +365,7 @@ class AbstractLogView : public QAbstractScrollArea, public SearchableWidgetInter
     RegularExpressionPattern searchPattern_;
 
     std::vector<QuickHighlighters> quickHighlighters_ = std::vector<QuickHighlighters>{ 9 };
+    QStringList aiHighlightPatterns_;
 
     // Position of the view, those are crucial to control drawing
     // firstLine gives the position of the view,
