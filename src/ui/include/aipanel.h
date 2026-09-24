@@ -64,6 +64,7 @@ class AiPanel : public QWidget {
     void applyHighlights();
     void undoFilter();
     void undoHighlights();
+    void configureProvider();
     bool confirmSend();
     void requestFinished( AiCliBackend::Provider provider, const QString& output );
     void requestFailed( AiCliBackend::Provider provider, const QString& message );
@@ -83,6 +84,7 @@ class AiPanel : public QWidget {
     QPushButton* undoFilterButton_;
     QPushButton* applyHighlightsButton_;
     QPushButton* undoHighlightsButton_;
+    QPushButton* configureButton_;
     QString fileName_;
     QString contextText_;
     QString pendingQuestion_;

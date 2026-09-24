@@ -1,7 +1,9 @@
 #include "aipanel.h"
 
 #include "airesponse.h"
+#include "aiproviderconfigdialog.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
@@ -11,6 +13,7 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -49,6 +52,7 @@ AiPanel::AiPanel( QWidget* parent )
     , undoFilterButton_( new QPushButton( tr( "Undo filter" ), this ) )
     , applyHighlightsButton_( new QPushButton( tr( "Apply highlights" ), this ) )
     , undoHighlightsButton_( new QPushButton( tr( "Undo highlights" ), this ) )
+    , configureButton_( new QPushButton( tr( "Configure" ), this ) )
 {
     providerBox_->addItem( tr( "CodeBuddy" ), static_cast<int>( AiCliBackend::Provider::CodeBuddy ) );
     providerBox_->addItem( tr( "Codex" ), static_cast<int>( AiCliBackend::Provider::Codex ) );
@@ -66,8 +70,22 @@ AiPanel::AiPanel( QWidget* parent )
     contextLabel_->setWordWrap( true );
     conversation_->setOpenLinks( false );
     conversation_->setOpenExternalLinks( false );
+    conversation_->setStyleSheet( QStringLiteral(
+        "QTextBrowser { color: %1; background-color: %2; }" )
+                                      .arg( QApplication::palette().color( QPalette::Text ).name(),
+                                            QApplication::palette().color( QPalette::Base ).name() ) );
     input_->setFixedHeight( 88 );
     input_->setPlaceholderText( tr( "Ask about this log. Enter to analyze; Shift+Enter for a new line." ) );
+    input_->setEnabled( true );
+    input_->setReadOnly( false );
+    input_->setFocusPolicy( Qt::StrongFocus );
+    input_->setTabChangesFocus( false );
+    input_->setAttribute( Qt::WA_InputMethodEnabled );
+    // Defensive palette fallback in case the active theme leaves the edit area unreadable.
+    input_->setStyleSheet( QStringLiteral(
+        "QPlainTextEdit { color: %1; background-color: %2; }" )
+                              .arg( QApplication::palette().color( QPalette::Text ).name(),
+                                    QApplication::palette().color( QPalette::Base ).name() ) );
     input_->installEventFilter( this );
     status_->setWordWrap( true );
     stopButton_->hide();
@@ -79,6 +97,7 @@ AiPanel::AiPanel( QWidget* parent )
     auto* providerLayout = new QHBoxLayout{};
     providerLayout->addWidget( new QLabel( tr( "Provider:" ), this ) );
     providerLayout->addWidget( providerBox_, 1 );
+    providerLayout->addWidget( configureButton_ );
     auto* scopeLayout = new QHBoxLayout{};
     scopeLayout->addWidget( new QLabel( tr( "Context:" ), this ) );
     scopeLayout->addWidget( scopeBox_, 1 );
@@ -108,6 +127,7 @@ AiPanel::AiPanel( QWidget* parent )
     connect( undoFilterButton_, &QPushButton::clicked, this, &AiPanel::undoFilter );
     connect( applyHighlightsButton_, &QPushButton::clicked, this, &AiPanel::applyHighlights );
     connect( undoHighlightsButton_, &QPushButton::clicked, this, &AiPanel::undoHighlights );
+    connect( configureButton_, &QPushButton::clicked, this, &AiPanel::configureProvider );
     connect( backend_, &AiCliBackend::finished, this, &AiPanel::requestFinished );
     connect( backend_, &AiCliBackend::failed, this, &AiPanel::requestFailed );
     connect( backend_, &AiCliBackend::cancelled, this, [ this ] {
@@ -481,6 +501,15 @@ void AiPanel::updateAvailability()
         status_->setText( unavailable.isEmpty()
                               ? tr( "Enter a question to analyze the current log." )
                               : unavailable );
+    }
+}
+
+void AiPanel::configureProvider()
+{
+    const auto provider = static_cast<AiCliBackend::Provider>( providerBox_->currentData().toInt() );
+    AiProviderConfigDialog dialog( provider, this );
+    if ( dialog.exec() == QDialog::Accepted ) {
+        updateAvailability();
     }
 }
 
