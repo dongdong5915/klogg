@@ -344,9 +344,8 @@ bool AiCliBackend::start( Provider provider, const QString& prompt, const QByteA
         sandboxArgs << providerArgs;
 
         if ( provider == Provider::CodeBuddy && QFileInfo( userState ).isFile() ) {
-            const int insertAt
-                = sandboxArgs.indexOf( QStringLiteral( "--dir" ),
-                                       sandboxArgs.indexOf( authDir ) );
+            const int insertAt = static_cast<int>( sandboxArgs.indexOf(
+                QStringLiteral( "--dir" ), sandboxArgs.indexOf( authDir ) ) );
             if ( insertAt >= 0 ) {
                 sandboxArgs.insert( insertAt, QStringLiteral( "--ro-bind" ) );
                 sandboxArgs.insert( insertAt + 1, userState );

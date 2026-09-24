@@ -13,7 +13,7 @@
 
 void AiProviderSettings::save( QSettings& settings, const QString& providerKey ) const
 {
-    settings.beginGroup( QStringLiteral( "aiProviders/%1" ).arg( providerKey ) );
+    settings.beginGroup( providerKey );
     settings.setValue( QStringLiteral( "executablePath" ), executablePath );
     settings.setValue( QStringLiteral( "apiKey" ), apiKey );
     settings.setValue( QStringLiteral( "useSandbox" ), useSandbox );
@@ -24,7 +24,7 @@ void AiProviderSettings::save( QSettings& settings, const QString& providerKey )
 
 void AiProviderSettings::restore( QSettings& settings, const QString& providerKey )
 {
-    settings.beginGroup( QStringLiteral( "aiProviders/%1" ).arg( providerKey ) );
+    settings.beginGroup( providerKey );
     executablePath = settings.value( QStringLiteral( "executablePath" ), executablePath ).toString();
     apiKey = settings.value( QStringLiteral( "apiKey" ), apiKey ).toString();
     useSandbox = settings.value( QStringLiteral( "useSandbox" ), useSandbox ).toBool();
