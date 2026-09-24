@@ -15,6 +15,9 @@ runs:
       run: |
         mkdir $KLOGG_BUILD_ROOT
         cd $KLOGG_BUILD_ROOT
+        if [ "$RUNNER_OS" = "macOS" ]; then
+          KLOGG_CMAKE_OPTS="$KLOGG_CMAKE_OPTS -DCMAKE_OSX_SYSROOT=$(xcrun --sdk macosx --show-sdk-path)"
+        fi
         CMAKE_POLICY_VERSION_MINIMUM=3.5 cmake $KLOGG_CMAKE_OPTS -DCPM_SOURCE_CACHE=$KLOGG_WORKSPACE/cpm_cache -DKLOGG_OVERRIDE_MALLOC=OFF $KLOGG_WORKSPACE
 
     - name: build
