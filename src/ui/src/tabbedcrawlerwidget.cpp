@@ -62,7 +62,8 @@ TabbedCrawlerWidget::TabbedCrawlerWidget()
     QString backgroundHoverImage;
 
     const auto& config = Configuration::get();
-    if ( config.style() == StyleManager::DarkStyleKey ) {
+    const bool darkTheme = StyleManager::isDarkTheme( config.theme(), config.style() );
+    if ( darkTheme ) {
         backgroundImage = ":/images/icons8-close-window-16_inverse.png";
         backgroundHoverImage = ":/images/icons8-close-window-hover-16_inverse.png";
     }
@@ -71,14 +72,14 @@ TabbedCrawlerWidget::TabbedCrawlerWidget()
     // work around Qt MacOSX bug missing tab close icons
     // see: https://bugreports.qt.io/browse/QTBUG-61092
     // still broken in document mode in Qt.5.12.2 !!!!
-    if ( config.style() != StyleManager::DarkStyleKey ) {
+    if ( !darkTheme ) {
         backgroundImage
             = ":/qt-project.org/styles/commonstyle/images/standardbutton-closetab-16.png";
         backgroundHoverImage
             = ":/qt-project.org/styles/commonstyle/images/standardbutton-closetab-hover-16.png";
     }
 #elif defined( Q_OS_WIN )
-    if ( config.style() == StyleManager::FusionKey ) {
+    if ( !darkTheme && config.style() == StyleManager::FusionKey ) {
         backgroundImage = ":/images/icons8-close-window-16.png";
         backgroundHoverImage = ":/images/icons8-close-window-hover-16.png";
     }

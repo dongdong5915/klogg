@@ -169,7 +169,7 @@ int main( int argc, char* argv[] )
         app.sendFilesToPrimaryInstance( parameters.filenames );
     }
     else {
-        StyleManager::applyStyle( config.style() );
+        StyleManager::applyStyle( config.style(), config.theme() );
 
         auto startNewSession = true;
         MainWindow* mw = nullptr;

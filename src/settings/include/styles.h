@@ -22,11 +22,18 @@
 
 #include <QStringList>
 #include <QLatin1String>
+#include <QPalette>
 
 struct StyleManager {
 
     static constexpr QLatin1String DarkStyleKey = QLatin1String( "Dark", 4 );
     static constexpr QLatin1String DarkWindowsStyleKey = QLatin1String( "Windows Dark", 12 );
+    static constexpr QLatin1String DefaultThemeKey = QLatin1String( "default", 7 );
+    static constexpr QLatin1String DarkModernThemeKey = QLatin1String( "dark-modern", 11 );
+    static constexpr QLatin1String LightModernThemeKey = QLatin1String( "light-modern", 12 );
+    static constexpr QLatin1String DarkPlusThemeKey = QLatin1String( "dark-plus", 9 );
+    static constexpr QLatin1String DarkHighContrastThemeKey
+        = QLatin1String( "dark-high-contrast", 18 );
     static constexpr QLatin1String VistaKey = QLatin1String( "WindowsVista", 12 );
     static constexpr QLatin1String FusionKey = QLatin1String( "Fusion", 6 );
     static constexpr QLatin1String WindowsKey = QLatin1String( "Windows", 7 );
@@ -36,9 +43,13 @@ struct StyleManager {
     static constexpr QLatin1String Bb10Key = QLatin1String( "bb10", 4 );
 
     static QStringList availableStyles();
+    static QStringList availableColorThemes();
     static QString defaultPlatformStyle();
 
     static void applyStyle( const QString& style );
+    static void applyStyle( const QString& style, const QString& theme );
+    static QPalette themePalette( const QString& theme );
+    static bool isDarkTheme( const QString& theme, const QString& style );
 };
 
 #endif

@@ -39,9 +39,12 @@
 #include <QColorDialog>
 #include <QKeySequenceEdit>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPixmap>
 #include <QToolButton>
 #include <QtGui>
 
+#include "configuration.h"
 #include "encodings.h"
 #include "fontutils.h"
 #include "highlighteredit.h"
@@ -151,6 +154,38 @@ void OptionsDialog::setupRegexp()
 void OptionsDialog::setupStyles()
 {
     styleComboBox->addItems( StyleManager::availableStyles() );
+
+    const QStringList themeNames = {
+        tr( "Keep current colors / 保持现有配色" ), tr( "Dark Modern / 深色现代" ),
+        tr( "Light Modern / 浅色现代" ), tr( "Dark+ / 深色增强" ),
+        tr( "Dark High Contrast / 深色高对比度" )
+    };
+    const auto themes = StyleManager::availableColorThemes();
+    for ( int index = 0; index < themes.size(); ++index ) {
+        const auto& theme = themes.at( index );
+        auto palette = StyleManager::themePalette( theme );
+        const auto& config = Configuration::get();
+        if ( theme == StyleManager::DefaultThemeKey
+             && ( config.style() == StyleManager::DarkStyleKey
+                  || config.style() == StyleManager::DarkWindowsStyleKey ) ) {
+            const auto legacyPalette = config.darkPalette();
+            palette.setColor( QPalette::Window, QColor( legacyPalette.at( "Window" ) ) );
+            palette.setColor( QPalette::Base, QColor( legacyPalette.at( "Base" ) ) );
+            palette.setColor( QPalette::Text, QColor( legacyPalette.at( "Text" ) ) );
+            palette.setColor( QPalette::Link, QColor( legacyPalette.at( "Link" ) ) );
+            palette.setColor( QPalette::Highlight, QColor( legacyPalette.at( "Highlight" ) ) );
+            palette.setColor( QPalette::HighlightedText,
+                              QColor( legacyPalette.at( "HighlightedText" ) ) );
+        }
+        QPixmap preview( 48, 14 );
+        preview.fill( palette.color( QPalette::Window ) );
+        QPainter painter( &preview );
+        painter.fillRect( 0, 0, 5, preview.height(), palette.color( QPalette::Highlight ) );
+        painter.setPen( palette.color( QPalette::Text ) );
+        painter.drawLine( 10, preview.height() / 2, preview.width() - 3,
+                          preview.height() / 2 );
+        colorThemeComboBox->addItem( QIcon( preview ), themeNames.at( index ), theme );
+    }
 }
 
 void OptionsDialog::setupEncodings()
@@ -313,12 +348,10 @@ void OptionsDialog::updateDialogFromConfig()
     languageComboBox->setCurrentIndex( langIdx );
 
     const auto style = config.style();
-    if ( !styleComboBox->findText( style, Qt::MatchExactly ) ) {
-        styleComboBox->setCurrentIndex( 0 );
-    }
-    else {
-        styleComboBox->setCurrentText( style );
-    }
+    const auto styleIndex = styleComboBox->findText( style, Qt::MatchExactly );
+    styleComboBox->setCurrentIndex( styleIndex == -1 ? 0 : styleIndex );
+    const auto themeIndex = colorThemeComboBox->findData( config.theme() );
+    colorThemeComboBox->setCurrentIndex( themeIndex == -1 ? 0 : themeIndex );
 
     hideAnsiColorsCheckBox->setChecked( config.hideAnsiColorSequences() );
 
@@ -545,9 +578,11 @@ void OptionsDialog::updateConfigFromDialog()
 
     config.setVerifySslPeers( verifySslCheckBox->isChecked() );
 
-    restartAppMessage = config.style() != styleComboBox->currentText();
+    restartAppMessage = config.style() != styleComboBox->currentText()
+                        || config.theme() != colorThemeComboBox->currentData().toString();
 
     config.setStyle( styleComboBox->currentText() );
+    config.setTheme( colorThemeComboBox->currentData().toString() );
     config.setHideAnsiColorSequences( hideAnsiColorsCheckBox->isChecked() );
 
     config.setDefaultEncodingMib( encodingComboBox->currentData().toInt() );

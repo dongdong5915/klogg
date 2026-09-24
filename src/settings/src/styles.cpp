@@ -19,6 +19,7 @@
 
 #include <QApplication>
 #include <QPalette>
+#include <QStyle>
 #include <QStyleFactory>
 #include <qcolor.h>
 
@@ -68,50 +69,144 @@ QString StyleManager::defaultPlatformStyle()
 #endif
 }
 
+QStringList StyleManager::availableColorThemes()
+{
+    return { DefaultThemeKey, DarkModernThemeKey, LightModernThemeKey, DarkPlusThemeKey,
+             DarkHighContrastThemeKey };
+}
+
+QPalette StyleManager::themePalette( const QString& theme )
+{
+    QPalette palette = qApp->palette();
+    QColor windowColor( "#1f1f1f" );
+    QColor baseColor( "#181818" );
+    QColor alternateColor( "#252526" );
+    QColor textColor( "#cccccc" );
+    QColor accentColor( "#0078d4" );
+    QColor highlightColor( "#264f78" );
+    QColor highlightedTextColor( "#ffffff" );
+    QColor disabledTextColor( "#9b9b9b" );
+
+    if ( theme == LightModernThemeKey ) {
+        windowColor = QColor( "#f3f3f3" );
+        baseColor = QColor( "#ffffff" );
+        alternateColor = QColor( "#e8e8e8" );
+        textColor = QColor( "#1f1f1f" );
+        accentColor = QColor( "#005fb8" );
+        highlightColor = QColor( "#add6ff" );
+        highlightedTextColor = QColor( "#1f1f1f" );
+        disabledTextColor = QColor( "#606060" );
+    }
+    else if ( theme == DarkPlusThemeKey ) {
+        windowColor = QColor( "#252526" );
+        baseColor = QColor( "#1e1e1e" );
+        alternateColor = QColor( "#2d2d30" );
+        textColor = QColor( "#d4d4d4" );
+        accentColor = QColor( "#007acc" );
+        highlightColor = QColor( "#264f78" );
+    }
+    else if ( theme == DarkHighContrastThemeKey ) {
+        windowColor = QColor( "#000000" );
+        baseColor = QColor( "#000000" );
+        alternateColor = QColor( "#1a1a1a" );
+        textColor = QColor( "#ffffff" );
+        accentColor = QColor( "#ffff00" );
+        highlightColor = QColor( "#ffffff" );
+        highlightedTextColor = QColor( "#000000" );
+        disabledTextColor = QColor( "#ffffff" );
+    }
+    else if ( theme == DefaultThemeKey ) {
+        return qApp->palette();
+    }
+
+    palette.setColor( QPalette::Window, windowColor );
+    palette.setColor( QPalette::WindowText, textColor );
+    palette.setColor( QPalette::Base, baseColor );
+    palette.setColor( QPalette::AlternateBase, alternateColor );
+    palette.setColor( QPalette::ToolTipBase, windowColor );
+    palette.setColor( QPalette::ToolTipText, textColor );
+    palette.setColor( QPalette::Text, textColor );
+    palette.setColor( QPalette::Button, windowColor );
+    palette.setColor( QPalette::ButtonText, textColor );
+    palette.setColor( QPalette::Link, accentColor );
+    palette.setColor( QPalette::Highlight, highlightColor );
+    palette.setColor( QPalette::HighlightedText, highlightedTextColor );
+    palette.setColor( QPalette::Disabled, QPalette::Text, disabledTextColor );
+    palette.setColor( QPalette::Disabled, QPalette::WindowText, disabledTextColor );
+    palette.setColor( QPalette::Disabled, QPalette::ButtonText, disabledTextColor );
+    palette.setColor( QPalette::Disabled, QPalette::Highlight, alternateColor );
+    return palette;
+}
+
+bool StyleManager::isDarkTheme( const QString& theme, const QString& style )
+{
+    if ( theme == DefaultThemeKey ) {
+        if ( style == DarkStyleKey || style == DarkWindowsStyleKey ) {
+            return true;
+        }
+
+        return qApp->palette().color( QPalette::Window ).lightness() < 128;
+    }
+
+    return theme == DarkModernThemeKey || theme == DarkPlusThemeKey
+           || theme == DarkHighContrastThemeKey;
+}
+
 void StyleManager::applyStyle( const QString& style )
 {
-    LOG_INFO << "Setting style to " << style;
+    applyStyle( style, DefaultThemeKey );
+}
 
-    if ( style == DarkStyleKey || style == DarkWindowsStyleKey ) {
-        const auto palette = Configuration::get().darkPalette();
+void StyleManager::applyStyle( const QString& style, const QString& theme )
+{
+    LOG_INFO << "Setting style to " << style << " and color theme to " << theme;
 
-        QPalette darkPalette;
-        darkPalette.setColor( QPalette::Window, QColor( palette.at( "Window" ) ) );
-        darkPalette.setColor( QPalette::WindowText, QColor( palette.at( "WindowText" ) ) );
-        darkPalette.setColor( QPalette::Base, QColor( palette.at( "Base" ) ) );
-        darkPalette.setColor( QPalette::AlternateBase, QColor( palette.at( "AlternateBase" ) ) );
-        darkPalette.setColor( QPalette::ToolTipBase, QColor( palette.at( "ToolTipBase" ) ) );
-        darkPalette.setColor( QPalette::ToolTipText, QColor( palette.at( "ToolTipText" ) ) );
-        darkPalette.setColor( QPalette::Text, QColor( palette.at( "Text" ) ) );
-        darkPalette.setColor( QPalette::Button, QColor( palette.at( "Button" ) ) );
-        darkPalette.setColor( QPalette::ButtonText, QColor( palette.at( "ButtonText" ) ) );
-        darkPalette.setColor( QPalette::Link, QColor( palette.at( "Link" ) ) );
-        darkPalette.setColor( QPalette::Highlight, QColor( palette.at( "Highlight" ) ) );
-        darkPalette.setColor( QPalette::HighlightedText,
-                              QColor( palette.at( "HighlightedText" ) ) );
-
-        darkPalette.setColor( QPalette::Active, QPalette::Button,
-                              QColor( palette.at( "ActiveButton" ) ) );
-        darkPalette.setColor( QPalette::Disabled, QPalette::ButtonText,
-                              QColor( palette.at( "DisabledButtonText" ) ) );
-        darkPalette.setColor( QPalette::Disabled, QPalette::WindowText,
-                              QColor( palette.at( "DisabledWindowText" ) ) );
-        darkPalette.setColor( QPalette::Disabled, QPalette::Text,
-                              QColor( palette.at( "DisabledText" ) ) );
-        darkPalette.setColor( QPalette::Disabled, QPalette::Light,
-                              QColor( palette.at( "DisabledLight" ) ) );
-
-        if ( style == DarkWindowsStyleKey ) {
-            qApp->setStyle( QStyleFactory::create( WindowsKey ) );
-        }
-        else {
-            qApp->setStyle( QStyleFactory::create( FusionKey ) );
-        }
-
-        qApp->setPalette( darkPalette );
+    const bool legacyDarkStyle = style == DarkStyleKey || style == DarkWindowsStyleKey;
+    QString widgetStyle = style;
+    if ( style == DarkStyleKey ) {
+        widgetStyle = FusionKey;
     }
-    else {
-        qApp->setStyle( style );
-        qApp->setStyleSheet( "" );
+    else if ( style == DarkWindowsStyleKey ) {
+        widgetStyle = WindowsKey;
     }
+
+    qApp->setStyle( widgetStyle );
+    qApp->setStyleSheet( "" );
+
+    if ( theme != DefaultThemeKey ) {
+        qApp->setPalette( themePalette( theme ) );
+        return;
+    }
+
+    if ( !legacyDarkStyle ) {
+        return;
+    }
+
+    const auto legacyPalette = Configuration::get().darkPalette();
+    QPalette darkPalette{};
+    darkPalette.setColor( QPalette::Window, QColor( legacyPalette.at( "Window" ) ) );
+    darkPalette.setColor( QPalette::WindowText, QColor( legacyPalette.at( "WindowText" ) ) );
+    darkPalette.setColor( QPalette::Base, QColor( legacyPalette.at( "Base" ) ) );
+    darkPalette.setColor( QPalette::AlternateBase,
+                          QColor( legacyPalette.at( "AlternateBase" ) ) );
+    darkPalette.setColor( QPalette::ToolTipBase, QColor( legacyPalette.at( "ToolTipBase" ) ) );
+    darkPalette.setColor( QPalette::ToolTipText, QColor( legacyPalette.at( "ToolTipText" ) ) );
+    darkPalette.setColor( QPalette::Text, QColor( legacyPalette.at( "Text" ) ) );
+    darkPalette.setColor( QPalette::Button, QColor( legacyPalette.at( "Button" ) ) );
+    darkPalette.setColor( QPalette::ButtonText, QColor( legacyPalette.at( "ButtonText" ) ) );
+    darkPalette.setColor( QPalette::Link, QColor( legacyPalette.at( "Link" ) ) );
+    darkPalette.setColor( QPalette::Highlight, QColor( legacyPalette.at( "Highlight" ) ) );
+    darkPalette.setColor( QPalette::HighlightedText,
+                          QColor( legacyPalette.at( "HighlightedText" ) ) );
+    darkPalette.setColor( QPalette::Active, QPalette::Button,
+                          QColor( legacyPalette.at( "ActiveButton" ) ) );
+    darkPalette.setColor( QPalette::Disabled, QPalette::ButtonText,
+                          QColor( legacyPalette.at( "DisabledButtonText" ) ) );
+    darkPalette.setColor( QPalette::Disabled, QPalette::WindowText,
+                          QColor( legacyPalette.at( "DisabledWindowText" ) ) );
+    darkPalette.setColor( QPalette::Disabled, QPalette::Text,
+                          QColor( legacyPalette.at( "DisabledText" ) ) );
+    darkPalette.setColor( QPalette::Disabled, QPalette::Light,
+                          QColor( legacyPalette.at( "DisabledLight" ) ) );
+    qApp->setPalette( darkPalette );
 }

@@ -337,11 +337,23 @@
          <item>
           <widget class="QGroupBox" name="styleBox">
            <property name="title">
-            <string>Style</string>
+            <string>Widget style</string>
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_15">
             <item>
              <widget class="QComboBox" name="styleComboBox"/>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="colorThemeBox">
+           <property name="title">
+            <string>Color theme</string>
+           </property>
+           <layout class="QVBoxLayout" name="colorThemeLayout">
+            <item>
+             <widget class="QComboBox" name="colorThemeComboBox"/>
             </item>
            </layout>
           </widget>
