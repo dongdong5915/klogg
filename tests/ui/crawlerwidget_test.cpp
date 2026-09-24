@@ -294,7 +294,11 @@ SCENARIO( "AI search uses the current crawler and can restore the previous searc
     REQUIRE( !context.isEmpty() );
     REQUIRE( context.toUtf8().size() <= 24 * 1024 );
 
+#if QT_VERSION >= QT_VERSION_CHECK( 5, 15, 0 )
     const QStringList contextLines = context.split( QChar::LineFeed, Qt::SkipEmptyParts );
+#else
+    const QStringList contextLines = context.split( QChar::LineFeed, QString::SkipEmptyParts );
+#endif
     REQUIRE( contextLines.size() <= 80 );
     // Every line must carry the "L<line>" id used to resolve AI evidence back to the file.
     REQUIRE( std::all_of( contextLines.begin(), contextLines.end(),

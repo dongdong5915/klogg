@@ -207,14 +207,18 @@ void AiPanel::setContext( QString fileName, QString contextText )
     fileLabel_->setText( fileName_.isEmpty() ? tr( "No file selected" ) : fileName_ );
 
     const QRegularExpression linePattern{ QStringLiteral( "^L([1-9][0-9]*): (.*)$" ) };
+#if QT_VERSION >= QT_VERSION_CHECK( 5, 15, 0 )
     const auto lines = contextText_.split( QLatin1Char( '\n' ), Qt::SkipEmptyParts );
+#else
+    const auto lines = contextText_.split( QLatin1Char( '\n' ), QString::SkipEmptyParts );
+#endif
     for ( const auto& line : lines ) {
         const auto match = linePattern.match( line );
         if ( !match.hasMatch() ) {
             continue;
         }
         bool validLine = false;
-        const qulonglong number = match.capturedRef( 1 ).toULongLong( &validLine );
+        const qulonglong number = match.captured( 1 ).toULongLong( &validLine );
         if ( validLine ) {
             allowedEvidence_.insert( number );
             evidenceText_.insert( number, match.captured( 2 ) );

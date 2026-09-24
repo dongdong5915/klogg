@@ -182,7 +182,7 @@ bool AiResponseParser::parse( const QByteArray& output, const QSet<qulonglong>& 
             return false;
         }
         bool validNumber = false;
-        const qulonglong line = value.toString().midRef( 1 ).toULongLong( &validNumber );
+        const qulonglong line = value.toString().mid( 1 ).toULongLong( &validNumber );
         if ( !validNumber || !allowedEvidence.contains( line ) ) {
             *error = QStringLiteral( "Evidence is outside the supplied snapshot" );
             return false;
