@@ -80,12 +80,6 @@ AiPanel::AiPanel( QWidget* parent )
     input_->setReadOnly( false );
     input_->setFocusPolicy( Qt::StrongFocus );
     input_->setTabChangesFocus( false );
-    input_->setAttribute( Qt::WA_InputMethodEnabled );
-    // Defensive palette fallback in case the active theme leaves the edit area unreadable.
-    input_->setStyleSheet( QStringLiteral(
-        "QPlainTextEdit { color: %1; background-color: %2; }" )
-                              .arg( QApplication::palette().color( QPalette::Text ).name(),
-                                    QApplication::palette().color( QPalette::Base ).name() ) );
     input_->installEventFilter( this );
     status_->setWordWrap( true );
     stopButton_->hide();
