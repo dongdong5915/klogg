@@ -19,6 +19,9 @@
 
 #include <catch2/catch.hpp>
 
+#include <algorithm>
+
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QTemporaryFile>
 #include <QTest>
@@ -27,6 +30,7 @@
 #include <qnamespace.h>
 #include <qtestmouse.h>
 
+#include "crawlerwidget.h"
 #include "savedsearches.h"
 #include "session.h"
 #include "test_utils.h"
@@ -109,6 +113,11 @@ struct CrawlerWidget::access_by<CrawlerWidgetPrivate> {
     void setSearchPattern( const QString& pattern )
     {
         QTest::keyClicks( crawler->searchLineEdit_, pattern );
+    }
+
+    void replaceSearchPattern( const QString& pattern )
+    {
+        crawler->searchLineEdit_->setEditText( pattern );
     }
 
     void enableCaseSensitiveSearch()
@@ -265,4 +274,50 @@ SCENARIO( "Crawler widget search", "[ui]" )
             }
         }
     }
+}
+
+SCENARIO( "AI search uses the current crawler and can restore the previous search", "[ui]" )
+{
+    QTemporaryFile file{ "crawler_ai_test_XXXXXX" };
+    REQUIRE( generateDataFiles( file ) );
+
+    Session session;
+    CrawlerWidgetVisitor crawlerVisitor;
+    crawlerVisitor.crawler.reset( static_cast<CrawlerWidget*>(
+        session.open( file.fileName(), []() { return new CrawlerWidget(); } ) ) );
+
+    REQUIRE( waitUiState( [ & ]() { return crawlerVisitor.isLoadingFinished(); } ) );
+    crawlerVisitor.render();
+
+    const QString context
+        = crawlerVisitor.crawler->aiContextSnapshot( AiContextScope::VisibleRange );
+    REQUIRE( !context.isEmpty() );
+    REQUIRE( context.toUtf8().size() <= 24 * 1024 );
+
+    const QStringList contextLines = context.split( QChar::LineFeed, Qt::SkipEmptyParts );
+    REQUIRE( contextLines.size() <= 80 );
+    // Every line must carry the "L<line>" id used to resolve AI evidence back to the file.
+    REQUIRE( std::all_of( contextLines.begin(), contextLines.end(),
+                          []( const QString& line ) {
+                              return QRegularExpression{ QStringLiteral( "^L[1-9][0-9]*: " ) }
+                                  .match( line )
+                                  .hasMatch();
+                          } ) );
+
+    // The filter scope is empty until a search has been run.
+    REQUIRE( crawlerVisitor.crawler->aiContextSnapshot( AiContextScope::FilterResults ).isEmpty() );
+
+    crawlerVisitor.replaceSearchPattern( "this is line" );
+    crawlerVisitor.runSearch();
+    REQUIRE( waitUiState( [ & ]() {
+        return crawlerVisitor.getLogFilteredNbLines().get() == SL_NB_LINES;
+    } ) );
+
+    REQUIRE( crawlerVisitor.crawler->applyAiSearch( "line 000010" ) );
+    REQUIRE( waitUiState( [ & ]() { return crawlerVisitor.getLogFilteredNbLines().get() == 1; } ) );
+
+    crawlerVisitor.crawler->undoAiSearch();
+    REQUIRE( waitUiState( [ & ]() {
+        return crawlerVisitor.getLogFilteredNbLines().get() == SL_NB_LINES;
+    } ) );
 }
