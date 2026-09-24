@@ -28,6 +28,7 @@ constexpr int MaxPromptBytes = 300 * 1024;
 constexpr int MaxSchemaBytes = 64 * 1024;
 constexpr int MaxStdoutBytes = 1024 * 1024;
 constexpr int MaxStderrBytes = 64 * 1024;
+constexpr int DefaultTimeoutMs = 120000;
 
 QString providerExecutableName( AiCliBackend::Provider provider )
 {
@@ -162,7 +163,7 @@ AiCliBackend::AiCliBackend( QObject* parent )
     connect( &timeout_, &QTimer::timeout, this, [ this ] {
         fail( tr( "%1 request timed out after %2 seconds." )
                   .arg( aiProviderName( provider_ ) )
-                  .arg( RequestTimeoutMs / 1000 ) );
+                  .arg( DefaultTimeoutMs / 1000 ) );
     } );
 }
 
@@ -370,7 +371,7 @@ bool AiCliBackend::start( Provider provider, const QString& prompt, const QByteA
     process_.setProcessEnvironment( env );
     process_.setWorkingDirectory( QDir::homePath() );
     process_.start();
-    timeout_.start( settings.timeoutMs > 0 ? settings.timeoutMs : 120000 );
+    timeout_.start( settings.timeoutMs > 0 ? settings.timeoutMs : DefaultTimeoutMs );
     return true;
 }
 
