@@ -17,7 +17,7 @@ runs:
   steps:
     - name: Mac prepare codesign
       id: prepare-codesign
-      if: ${{ github.event_name != 'pull_request' }} 
+      if: ${{ github.event_name != 'pull_request' && inputs['p12-file-base64'] != '' && inputs['p12-password'] != '' }}
       uses: apple-actions/import-codesign-certs@v1
       with: 
         p12-file-base64: ${{ inputs.p12-file-base64 }}
@@ -50,7 +50,7 @@ runs:
         echo "KLOGG_PKG=klogg-${{ env.KLOGG_VERSION }}-mac-${{ env.KLOGG_ARCH }}.pkg" >> $GITHUB_ENV
 
     - name: Mac codesign binaries
-      if: ${{ github.event_name != 'pull_request' }}
+      if: ${{ steps.prepare-codesign.outcome == 'success' }}
       shell: sh
       run: |
         cd $KLOGG_BUILD_ROOT
@@ -61,17 +61,18 @@ runs:
       run: |
         cd $KLOGG_BUILD_ROOT
         cpack --verbose -G "DragNDrop"
+        mv ./packages/klogg-${{ env.KLOGG_VERSION }}-OSX.dmg ./packages/${{ env.KLOGG_DMG }}
 
     - name: Mac codesign dmg
-      if: ${{ github.event_name != 'pull_request' }}
+      if: ${{ steps.prepare-codesign.outcome == 'success' }}
       shell: sh
       run: |
         cd $KLOGG_BUILD_ROOT
-        mv ./packages/klogg-${{ env.KLOGG_VERSION }}-OSX.dmg ./packages/${{ env.KLOGG_DMG }}
         codesign -v -f -o runtime --timestamp -s "${{ env.KLOGG_CODESIGN }}" ./packages/${{ env.KLOGG_DMG }}
     
-    - name: Mac notarize DMG 
-      if: ${{ github.event_name != 'pull_request' }} 
+    - name: Mac notarize DMG
+      id: notarize-dmg
+      if: ${{ steps.prepare-codesign.outcome == 'success' && inputs['notarization-username'] != '' && inputs['notarization-team'] != '' && inputs['notarization-password'] != '' }}
       shell: sh
       run: |
         xcrun notarytool submit --wait --apple-id "${{ inputs.notarization-username }}" --team-id "${{ inputs.notarization-team }}" --password "${{ inputs.notarization-password }}" "${{ env.KLOGG_BUILD_ROOT }}/packages/${{ env.KLOGG_DMG }}" | tee dmg_notary.log
@@ -79,8 +80,8 @@ runs:
         xcrun notarytool log --apple-id "${{ inputs.notarization-username }}" --team-id "${{ inputs.notarization-team }}" --password "${{ inputs.notarization-password }}" "$dmg_notary_id" "dmg_notary.log.json"
         cat "dmg_notary.log.json"
 
-    - name: Mac staple DMG 
-      if: ${{ github.event_name != 'pull_request' }} 
+    - name: Mac staple DMG
+      if: ${{ steps.notarize-dmg.outcome == 'success' }}
       shell: sh
       run: |
         xcrun stapler staple "${{ env.KLOGG_BUILD_ROOT }}/packages/${{ env.KLOGG_DMG }}"

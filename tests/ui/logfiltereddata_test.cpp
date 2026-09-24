@@ -22,7 +22,6 @@
 #include <QSignalSpy>
 #include <QTemporaryFile>
 #include <QTest>
-#include <QTimer>
 #include <qglobal.h>
 
 #include "configuration.h"
@@ -57,14 +56,17 @@ bool generateDataFiles( QTemporaryFile& file )
 void runSearch( LogFilteredData* filtered_data, const QString& regexp,
                 SafeQSignalSpy& searchProgressSpy )
 {
-
-    QTimer::singleShot(
-        50, [ & ]() { filtered_data->runSearch( RegularExpressionPattern( regexp ) ); } );
+    auto receivedCount = searchProgressSpy.count();
+    filtered_data->runSearch( RegularExpressionPattern( regexp ) );
 
     int progress = 0;
     do {
-        REQUIRE( searchProgressSpy.wait() );
-        QList<QVariant> progressArgs = searchProgressSpy.last();
+        if ( searchProgressSpy.count() == receivedCount ) {
+            REQUIRE( searchProgressSpy.wait( 10000 ) );
+        }
+
+        receivedCount = searchProgressSpy.count();
+        const auto progressArgs = searchProgressSpy.last();
         progress = progressArgs.at( 1 ).toInt();
     } while ( progress < 100 );
 }

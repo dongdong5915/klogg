@@ -80,7 +80,7 @@ jobs:
             check_container: ubuntu:20.04
             container_root: docker/ubuntu20.04
             container: variar/klogg_ubuntu20.04
-            cmake_opts:
+            cmake_opts: -DKLOGG_USE_LTO=OFF
           
           - os: ubuntu_jammy
             os_version: 22.04
@@ -113,7 +113,7 @@ jobs:
             package_suffix: AppImage
             container_root: docker/ubuntu20.04
             container: variar/klogg_ubuntu20.04
-            cmake_opts:
+            cmake_opts: -DKLOGG_USE_LTO=OFF
 
 
     runs-on: ubuntu-22.04
